@@ -6,6 +6,9 @@ const ejs = require('ejs');
 var encrypt = require('mongoose-encryption');
 const md5= require('md5');
 
+const bcrypt = require('bcrypt');
+const saltRounds = 12;
+
 
 
 const app = express();
@@ -49,20 +52,26 @@ app.get("/register",async(req,res)=>{
 
 app.post("/register",async(req,res)=>{
 
+  
 
   try {
-    const user=new User({
-      email:req.body.username,
-      password: md5(req.body.password)
-    });
 
-    await user.save();
-    console.log("User saved successfully");
-    res.render("secrets");
+    bcrypt.hash(req.body.password, saltRounds, async function(err,hash){
 
-} catch (err) {
-console.log("Unsuccessful Register");
-}
+      const user=new User({
+        email:req.body.username,
+        password: hash 
+      });
+      await user.save();
+      console.log("User saved successfully");
+      res.render("secrets");
+
+
+    })
+} 
+  catch (err) {
+    console.log("Unsuccessful Register");
+    }
 
 })
 
@@ -72,12 +81,14 @@ app.post("/login",async(req,res)=>{
   try {
          const user = await User.findOne({email:req.body.username});
          if(user){
-            console.log(md5(req.body.password));
-            if((user.password)===md5(req.body.password)){res.render("secrets");} 
-            else{      res.redirect("/");
-            }
 
-         }
+          const match = bcrypt.compare(req.body.password, user.password);
+
+          if(match)res.render("secrets");
+          else res.redirect("/");
+
+         }   
+         else{res.redirect("/");}  
   } catch (err) {
       console.log("error logging in");
       res.redirect("/");
